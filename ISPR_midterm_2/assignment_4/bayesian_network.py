@@ -1,5 +1,6 @@
 import numpy as np
 import random
+import copy
 
 class BayesianNetwork:
     def __init__(self, values : list, nodes: dict = {}, edges: dict = {}):
@@ -29,31 +30,29 @@ class BayesianNetwork:
         parents = []
         for parent, children in list(self.edges.items()):
             if node in children:
-                count += 1
                 parents.append(parent)
         return parents
     
     def topo_sort(self):
         # Topological sort
         sorted_nodes = []
-        edges_flat_list = [edge for edges in self.edges.values() for edge in edges] # very dirty
+        edges_copy = copy.deepcopy(self.edges) #so that we don't modify the original edges
+        edges_flat_list = [edge for edges in self.edges.values() for edge in edges] # dirty way to deal with nested lists
         starting_nodes = [node for node in self.nodes.keys() if not (node in edges_flat_list)] # nodes with no incoming edges
         while starting_nodes:
             node = starting_nodes.pop()
             sorted_nodes.append(node)
             try:
-                node_children = self.edges[node]
+                node_children = edges_copy[node]
                 for child in node_children:
-                    self.edges[node].remove(child)
-                    try:
-                        if not self.edges[child]:
-                            pass
-                    except KeyError:
+                    edges_copy[node].remove(child)
+
+                    if not (child in edges_copy.values()):
                         starting_nodes.append(child)
 
             except KeyError:
                 pass
-        if any(self.edges.values()):
+        if any(edges_copy.values()):
             return None
         
         return sorted_nodes
@@ -67,7 +66,10 @@ class BayesianNetwork:
 
         for node, prob in self.nodes.items():
             if len(self.get_parents(node)) != len(prob):
-                print(f"probabilities do not match number of parents of node {node}")
+                print(f"node {node}: probabilities do not match number of parents")
                 res = False
             
         return res
+
+    def add_prob_table(self, node: str, prob_table: list):
+        self.nodes[node] = prob_table
