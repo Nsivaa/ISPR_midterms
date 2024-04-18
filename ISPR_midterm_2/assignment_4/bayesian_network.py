@@ -15,7 +15,7 @@ class BayesianNetwork:
     def __str__(self) -> str:
         return f"Nodes: {self.nodes.keys()}, Edges: {self.edges}"
     
-    def add_node(self, node: str, prob_table: list = [0.5, 0.5]):
+    def add_node(self, node: str, prob_table: dict = {"Prior" : [0.5, 0.5]}):
         self.nodes.update({node : prob_table})
     
     def add_edge(self, parent: str, children: list):
@@ -32,6 +32,14 @@ class BayesianNetwork:
             if node in children:
                 parents.append(parent)
         return parents
+    
+    def get_probabilities(self, node: str) -> list:
+        # Get probabilities of a node
+        res = self.nodes[node]
+        if "Prior" in res.keys():
+            return res["Prior"]
+        else:
+            print(f"Node {node} has parents")
     
     def topo_sort(self):
         # Topological sort
@@ -59,17 +67,52 @@ class BayesianNetwork:
     
     def check_valid(self) -> bool:
         # Check if the network is valid
+
+        #if the net is not sortable, it has cycles
         res = True
         if self.topo_sort() is None:
             print("Network has cycles")
             res = False
 
+        # check probability table of the nodes
+            
+        # the sum of the probabilities of each node should be 1
+        
         for node, prob in self.nodes.items():
-            if len(self.get_parents(node)) != len(prob):
-                print(f"node {node}: probabilities do not match number of parents")
+            sum = 0
+            
+            if type(prob) == dict:
+                for _, value in prob.items():
+                    sum = np.sum(value)
+                    if sum != 1:
+                        print(f"Node {node} probability at {value} don't sum to 1")
+                        res = False
+            elif type(prob) == list:
+                sum = np.sum(prob)
+
+            if sum != 1:
+                print(f"Node {node} probability don't sum to 1")
                 res = False
+
+            # if node has no parents, the number of probabilities should be equal to the number of possible values
+            if len(self.get_parents(node)) == 0:
+                if len(list(prob.values())[0]) != len(self.values):
+                    print(f"Node {node} probability table doesn't match values length")
+                    res = False
+            else:
+            # if node has parents, the number of probabilities should be equal to the number of possible
+            # combinations of the possible values of the parents
+                if len(prob) != np.prod([len(self.values) for parent in self.get_parents(node)]):
+                    print(f"Node {node} probability table doesn't match parents values")
+                    res = False
             
         return res
 
-    def add_prob_table(self, node: str, prob_table: list):
-        self.nodes[node] = prob_table
+    def add_prob_table(self, node: str, prob_table: dict):
+        self.nodes.update({node : prob_table})
+
+    def sample(self, probabilities : list, values : list = [0,1]) -> int:
+        # Sample from a distribution, binary by default
+        if (len(values)!=len(probabilities)): 
+            raise ValueError('Length of values and probabilities are different')
+        return np.random.choice(values, p = probabilities)
