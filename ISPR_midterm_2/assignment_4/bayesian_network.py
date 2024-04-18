@@ -13,7 +13,7 @@ class BayesianNetwork:
         self.values = values  
 
     def __str__(self) -> str:
-        return f"Nodes: {self.nodes.keys()}, Edges: {self.edges}"
+        return f"Nodes: {self.nodes.keys()}, Edges: {self.edges}, Tables: {self.nodes}"
     
     def add_node(self, node: str, prob_table: dict = {"Prior" : [0.5, 0.5]}):
         self.nodes.update({node : prob_table})
@@ -81,13 +81,14 @@ class BayesianNetwork:
         for node, prob in self.nodes.items():
             sum = 0
             
-            if type(prob) == dict:
-                for _, value in prob.items():
+            if type(prob) == dict: # nodes with parents
+                for _, value in prob.items(): # check every row
                     sum = np.sum(value)
                     if sum != 1:
                         print(f"Node {node} probability at {value} don't sum to 1")
                         res = False
-            elif type(prob) == list:
+
+            elif type(prob) == list: # nodes with no parents
                 sum = np.sum(prob)
 
             if sum != 1:
@@ -103,16 +104,39 @@ class BayesianNetwork:
             # if node has parents, the number of probabilities should be equal to the number of possible
             # combinations of the possible values of the parents
                 if len(prob) != np.prod([len(self.values) for parent in self.get_parents(node)]):
-                    print(f"Node {node} probability table doesn't match parents values")
+                    print(f"Node {node} probability table doesn't match parents' number of values")
                     res = False
             
         return res
 
     def add_prob_table(self, node: str, prob_table: dict):
+        if node not in self.nodes.keys():
+             print("Node not in network")
+             return
         self.nodes.update({node : prob_table})
 
-    def sample(self, probabilities : list, values : list = [0,1]) -> int:
+    def sample(self, probabilities : list, values : list = ["True","False"]) -> int:
         # Sample from a distribution, binary by default
         if (len(values)!=len(probabilities)): 
             raise ValueError('Length of values and probabilities are different')
         return np.random.choice(values, p = probabilities)
+    
+    def ancestral_sampling(self, n) -> dict:
+        # perform ancestral sampling algorithm for n times
+        if not self.check_valid():
+            print("Network is invalid")
+            return None
+        sorted_nodes = self.topo_sort()
+        print(f"Topological sort: {sorted_nodes}")
+        samples = {}
+        for i in range(n):
+            for node in sorted_nodes:
+                prob = self.get_probabilities(node)
+                parents = self.get_parents(node)
+
+                if len(parents) == 0:
+                    samples.update({node : self.sample(prob, values=self.values)})
+                else:
+                    samples.update({node : self.sample(prob, values=self.values)})
+                    
+                    
