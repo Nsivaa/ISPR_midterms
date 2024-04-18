@@ -15,7 +15,7 @@ class BayesianNetwork:
     def __str__(self) -> str:
         return f"Nodes: {self.nodes.keys()}, Edges: {self.edges}, Tables: {self.nodes}"
     
-    def add_node(self, node: str, prob_table: dict = {"Prior" : [0.5, 0.5]}):
+    def add_node(self, node: str, prob_table: dict = {"Prior" : (0.5, 0.5)}):
         self.nodes.update({node : prob_table})
     
     def add_edge(self, parent: str, children: list):
@@ -33,7 +33,7 @@ class BayesianNetwork:
                 parents.append(parent)
         return parents
     
-    def get_probabilities(self, node: str, values: str = None) -> list:
+    def get_probabilities(self, node: str, values: str = None) -> tuple:
         # Get probabilities of a node
         res = self.nodes[node]
         if "Prior" in res.keys():
@@ -55,11 +55,12 @@ class BayesianNetwork:
                 for child in node_children:
                     edges_copy[node].remove(child)
 
-                    if not (child in [value for values in edges_copy.values() for value in values]): # nested lists again... 
+                    if not (child in [value for values in edges_copy.values() for value in values]): # if child has no other incoming edges  
                         starting_nodes.append(child)
 
             except KeyError:
                 pass
+
         if any(edges_copy.values()):
             return None
         
@@ -115,7 +116,7 @@ class BayesianNetwork:
              return
         self.nodes.update({node : prob_table})
 
-    def sample(self, probabilities : list, values : list = ["True","False"]) -> int:
+    def sample(self, probabilities : tuple, values : tuple = ("True","False")) -> int:
         # Sample from a distribution, binary by default
         if (len(values)!=len(probabilities)): 
             raise ValueError('Length of values and probabilities are different')
@@ -141,9 +142,11 @@ class BayesianNetwork:
 
                 else: # if node has parents, its probability is conditioned on the values of the parents according to the table
                     parent_values = [state[parent] for parent in parents]
+                    parent_values = parent_values[0] if len(parent_values) == 1 else tuple(parent_values)
                     prob = self.get_probabilities(node, parent_values)
 
-                    state.update({node : self.sample(prob[tuple(parent_values)], values=self.values)})
-
+                    state.update({node : self.sample(prob, values=self.values)})
+            samples.append(state)
+        return samples
                     
                     
