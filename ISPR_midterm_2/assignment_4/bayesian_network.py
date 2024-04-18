@@ -33,14 +33,14 @@ class BayesianNetwork:
                 parents.append(parent)
         return parents
     
-    def get_probabilities(self, node: str) -> list:
+    def get_probabilities(self, node: str, values: str = None) -> list:
         # Get probabilities of a node
         res = self.nodes[node]
         if "Prior" in res.keys():
             return res["Prior"]
         else:
-            print(f"Node {node} has parents")
-    
+            return res[values]
+        
     def topo_sort(self):
         # Topological sort
         sorted_nodes = []
@@ -55,7 +55,7 @@ class BayesianNetwork:
                 for child in node_children:
                     edges_copy[node].remove(child)
 
-                    if not (child in edges_copy.values()):
+                    if not (child in [value for values in edges_copy.values() for value in values]): # nested lists again... 
                         starting_nodes.append(child)
 
             except KeyError:
@@ -126,17 +126,24 @@ class BayesianNetwork:
         if not self.check_valid():
             print("Network is invalid")
             return None
+        
         sorted_nodes = self.topo_sort()
         print(f"Topological sort: {sorted_nodes}")
-        samples = {}
+        samples = []
         for i in range(n):
+            state = {} # state of the network
             for node in sorted_nodes:
-                prob = self.get_probabilities(node)
                 parents = self.get_parents(node)
 
-                if len(parents) == 0:
-                    samples.update({node : self.sample(prob, values=self.values)})
-                else:
-                    samples.update({node : self.sample(prob, values=self.values)})
+                if len(parents) == 0: # if node has no parents, its probability is not conditioned on other nodes
+                    prob = self.get_probabilities(node)
+                    state.update({node : self.sample(prob, values=self.values)})
+
+                else: # if node has parents, its probability is conditioned on the values of the parents according to the table
+                    parent_values = [state[parent] for parent in parents]
+                    prob = self.get_probabilities(node, parent_values)
+
+                    state.update({node : self.sample(prob[tuple(parent_values)], values=self.values)})
+
                     
                     
