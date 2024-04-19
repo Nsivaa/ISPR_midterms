@@ -1,5 +1,4 @@
 import numpy as np
-import random
 import copy
 
 class BayesianNetwork:
@@ -19,7 +18,7 @@ class BayesianNetwork:
         self.nodes.update({node : prob_table})
     
     def add_edge(self, parent: str, children: list):
-        if parent in self.nodes.keys():
+        if parent in self.nodes.keys() and all([child in self.nodes.keys() for child in children]):
             
             self.edges.update({parent : children})
         else:
@@ -51,7 +50,7 @@ class BayesianNetwork:
             node = starting_nodes.pop()
             sorted_nodes.append(node)
             try:
-                node_children = edges_copy[node]
+                node_children = copy.deepcopy(edges_copy[node])
                 for child in node_children:
                     edges_copy[node].remove(child)
 
@@ -150,3 +149,4 @@ class BayesianNetwork:
         return samples
                     
                     
+  
