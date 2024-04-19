@@ -51,7 +51,7 @@ class BayesianNetwork:
         edges_flat_list = [edge for edges in self.edges.values() for edge in edges] # dirty way to deal with nested lists
         starting_nodes = [node for node in self.nodes.keys() if not (node in edges_flat_list)] # nodes with no incoming edges
         while starting_nodes:
-            node = starting_nodes.pop()
+            node = starting_nodes.pop(0)
             sorted_nodes.append(node)
             try:
                 node_children = copy.deepcopy(edges_copy[node])
