@@ -134,7 +134,7 @@ class BayesianNetwork:
         sorted_nodes = self.topo_sort()
         print(f"Topological sort: {sorted_nodes}")
         samples = []
-        for i in range(n):
+        for _ in range(n):
             state = {} # state of the network
             for node in sorted_nodes:
                 try:
@@ -150,10 +150,74 @@ class BayesianNetwork:
                     parent_values = [state[parent] for parent in parents]
                     parent_values = parent_values[0] if len(parent_values) == 1 else tuple(parent_values)
                     prob = self.get_probabilities(node, parent_values)
-
                     state.update({node : self.sample(prob, values=self.values)})
+
             samples.append(state)
+
         return samples
-                    
-                    
-  
+    
+    def get_occurrences_node(self, node, samples):
+        return (sum([1 for sample in samples if sample[node] == "True"]) / len(samples))
+
+    def get_prob_of_observed(self, node, parent):
+        # Get the probability to observe the parent of the node
+        prob = self.get_probabilities(node, parent)
+        return prob[0]
+
+    def get_occurrences(self, samples):
+        occurrences = {}
+        for node in self.nodes.keys():
+            occurrences.update({node : self.get_occurrences_node(node, samples)})
+        return occurrences
+    
+    def get_distribution(self, sorted_nodes) -> dict:
+        # Get the distribution of the network
+        if not self.check_valid():
+            print("Network is invalid")
+            return None
+        true_dist = {}
+        for node in sorted_nodes:
+            try:
+                parents = self.ordering[node] # if ordering is provided, use it 
+            except KeyError:
+                parents = self.get_parents(node)
+            if len(parents) == 0:
+                prob = self.get_probabilities(node)
+                true_dist.update({node : prob})
+            else:
+                parent_values = [true_dist[parent] for parent in parents]
+                parent_values = parent_values[0] if len(parent_values) == 1 else tuple(parent_values)
+                joint_prob = np.prod([prob[i] for i in range(len(parent_values))])
+                true_dist.update({node : joint_prob})
+        return true_dist
+
+    def check_convergence(self, true_dist, samples, eps = 0.01) -> bool:
+       # Check if the distribution converges to the true distribution
+        for node in true_dist.keys():
+            true_prob = true_dist[node]
+            sample_prob = self.get_occurrences_node(node, samples)
+            if abs(true_prob - sample_prob) > eps:
+                return False
+        return True 
+
+    def expected_probabilities(self, eps = 0.01, n = 10) -> int:
+        '''
+        Performs ancestral sampling for an increasing number of samples until the obtained
+        distribution converges to the true distribution (with an error of 0.01 by default).
+        Starts with 10 samples and increases by 10% each time.
+        '''
+        if not self.check_valid():
+            print("Network is invalid")
+            return None
+        converged = False
+        sorted_nodes = self.topo_sort()
+        while not converged:
+            samples = self.ancestral_sampling(n)
+            true_dist = self.get_distribution(sorted_nodes)
+            if self.check_convergence(true_dist, samples, eps):
+                converged = True
+            else:
+                print(f"{n} samples not converged, increasing by 10%")
+                n = int(n * 1.1)
+                print(f"Number of samples: {n}")
+        return n
