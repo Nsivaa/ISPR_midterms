@@ -2,7 +2,7 @@ import numpy as np
 import copy
 
 class BayesianNetwork:
-    def __init__(self, values : list, nodes: dict = {}, edges: dict = {}):
+    def __init__(self, values : list, nodes: dict = {}, edges: dict = {}, ordering: dict = {}):
         # nodes is a dict of {node : probability table}
         # edges is a dict of {node : list of nodes it points to}
         # determines the possible values assumed by the variables in the network
@@ -10,6 +10,7 @@ class BayesianNetwork:
         self.nodes = nodes
         self.edges = edges 
         self.values = values  
+        self.ordering = ordering
 
     def __str__(self) -> str:
         return f"Nodes: {self.nodes.keys()}, Edges: {self.edges}, Tables: {self.nodes}"
@@ -24,6 +25,9 @@ class BayesianNetwork:
         else:
             raise ValueError("Node not in network")
 
+    def add_ordering(self, ordering: dict):
+        self.ordering  = ordering
+    
     def get_parents(self, node : str ) -> list:
         # Get parents of a node
         parents = []
@@ -133,7 +137,10 @@ class BayesianNetwork:
         for i in range(n):
             state = {} # state of the network
             for node in sorted_nodes:
-                parents = self.get_parents(node)
+                try:
+                    parents = self.ordering[node] # if ordering is provided, use it 
+                except KeyError:
+                    parents = self.get_parents(node) # if not, get parents of the node from the network ordering
 
                 if len(parents) == 0: # if node has no parents, its probability is not conditioned on other nodes
                     prob = self.get_probabilities(node)
