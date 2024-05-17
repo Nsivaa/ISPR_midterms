@@ -3,15 +3,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Categorical
 import numpy as np
+import matplotlib.pyplot as plt
 from tqdm import tqdm 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class RNN(nn.Module):
-    def __init__(self, input_size, output_size, hidden_size, num_layers):
+    def __init__(self, input_size, output_size, hidden_size, num_layers, dropout = 0.0):
         super(RNN, self).__init__()
         self.embedding = nn.Embedding(input_size, input_size)
-        self.rnn = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers)
+        self.rnn = nn.LSTM(input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, dropout=dropout)
         self.decoder = nn.Linear(hidden_size, output_size)
     
     def forward(self, input_seq, hidden_state):
@@ -20,17 +21,19 @@ class RNN(nn.Module):
         output = self.decoder(output)
         return output, (hidden_state[0].detach(), hidden_state[1].detach())
     
-def train(hidden_size = 512, num_layers = 3, load_chk = False, save_path = "./preTrained/CharRNN_air_reviews.pth"):
+def train(hidden_size = 512, num_layers = 3, epochs = 100, dropout = 0.0, load_chk = False, save_path = "./preTrained/CharRNN_air_reviews.pth", plot = True):
     ########### Hyperparameters ###########
     hidden_size = hidden_size   # size of hidden state
     seq_len = 100       # length of LSTM sequence
     num_layers = num_layers      # num of layers in LSTM layer stack
     lr = 0.002          # learning rate
-    epochs = 100        # max number of epochs
+    epochs = epochs        # max number of epochs
     op_seq_len = 200    # total num of characters in output test sequence
     load_chk = load_chk    # load weights from save_path directory to continue training
-    save_path = "./preTrained/CharRNN_air_reviews_" + str(num_layers) + ".pth"
+    save_path = "./preTrained/CharRNN_air_reviews_" + str(num_layers) + "_" + str(hidden_size) + ".pth"
     data_path = "./data/reviews.txt"
+    plot_every = 1000 # sequences
+    print_every = 10000
     #######################################
     
     # load the text file
@@ -55,7 +58,7 @@ def train(hidden_size = 512, num_layers = 3, load_chk = False, save_path = "./pr
     data = torch.unsqueeze(data, dim=1)
     
     # model instance
-    rnn = RNN(vocab_size, vocab_size, hidden_size, num_layers).to(device)
+    rnn = RNN(vocab_size, vocab_size, hidden_size, num_layers, dropout=dropout).to(device)
     
     # load checkpoint if True
     if load_chk:
@@ -66,7 +69,7 @@ def train(hidden_size = 512, num_layers = 3, load_chk = False, save_path = "./pr
     # loss function and optimizer
     loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(rnn.parameters(), lr=lr)
-    
+    losses = []
     # training loop
     for i_epoch in tqdm(range(1, epochs+1)):
         
@@ -86,7 +89,11 @@ def train(hidden_size = 512, num_layers = 3, load_chk = False, save_path = "./pr
             # compute loss
             loss = loss_fn(torch.squeeze(output), torch.squeeze(target_seq))
             running_loss += loss.item()
-            
+            if n % print_every == 0:
+                print(f"loss at {n}: {running_loss/n}")
+            if n % plot_every == 0:
+                losses.append(running_loss/n) 
+
             # compute gradients and take optimizer step
             optimizer.zero_grad()
             loss.backward()
@@ -103,7 +110,8 @@ def train(hidden_size = 512, num_layers = 3, load_chk = False, save_path = "./pr
         # print loss and save weights after every epoch
         print("Epoch: {0} \t Loss: {1:.8f}".format(i_epoch, running_loss/n))
         torch.save(rnn.state_dict(), save_path)
-        
+        # save losses 
+        np.save("./losses/CharRNN_air_reviews_" + str(num_layers) + "_" + str(hidden_size) + ".npy", np.array(losses))
         # sample / generate a text sequence after every epoch
         data_ptr = 0
         hidden_state = None
@@ -134,6 +142,10 @@ def train(hidden_size = 512, num_layers = 3, load_chk = False, save_path = "./pr
             
         print("\n----------------------------------------")
         
+    if plot:
+        plt.figure()
+        plt.plot(losses, label='loss')
+
 if __name__ == '__main__':
     train()
 
