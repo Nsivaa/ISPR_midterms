@@ -21,7 +21,7 @@ class RNN(nn.Module):
         output = self.decoder(output)
         return output, (hidden_state[0].detach(), hidden_state[1].detach())
     
-def train(hidden_size = 512, num_layers = 3, epochs = 100, dropout = 0.0, load_chk = False, save_path = "./preTrained/CharRNN_air_reviews.pth", plot = True):
+def train(hidden_size, num_layers, epochs, dropout, load_chk = False, save_path = "./preTrained/CharRNN_air_reviews.pth", plot = True):
     ########### Hyperparameters ###########
     hidden_size = hidden_size   # size of hidden state
     seq_len = 100       # length of LSTM sequence
@@ -75,7 +75,7 @@ def train(hidden_size = 512, num_layers = 3, epochs = 100, dropout = 0.0, load_c
         
         # random starting point (1st 100 chars) from data to begin
         data_ptr = np.random.randint(100)
-        n = 0
+        n = 1
         running_loss = 0
         hidden_state = None
         
@@ -141,7 +141,7 @@ def train(hidden_size = 512, num_layers = 3, epochs = 100, dropout = 0.0, load_c
                 break
             
         print("\n----------------------------------------")
-        
+
     if plot:
         plt.figure()
         plt.plot(losses, label='loss')
